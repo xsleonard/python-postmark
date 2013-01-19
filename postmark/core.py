@@ -370,7 +370,7 @@ class PMMail(object):
 
         return json_message
 
-    def dump_json_message(msg):
+    def dump_json_message(self, msg):
         return json.dumps(msg, cls=PMJSONEncoder)
 
     def send(self, test=None):
