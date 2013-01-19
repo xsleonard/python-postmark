@@ -31,17 +31,17 @@ except ImportError:
             raise Exception('Cannot use python-postmark library without Python 2.6 or greater, or Python 2.4 or 2.5 and the "simplejson" library')
 
 class PMJSONEncoder(json.JSONEncoder):
-	def default(self, o):
-		try:
-			if hasattr(o, '_proxy____str_cast') and callable(o._proxy____str_cast):
-				return o._proxy____str_cast()
-			elif hasattr(o, '_proxy____unicode_cast'):
-				return unicode(o)
-		except:
-			pass
-			
-		return super(PMJSONEncoder, self).default(o)
-	
+    def default(self, o):
+        try:
+            if hasattr(o, '_proxy____str_cast') and callable(o._proxy____str_cast):
+                return o._proxy____str_cast()
+            elif hasattr(o, '_proxy____unicode_cast'):
+                return unicode(o)
+        except:
+            pass
+            
+        return super(PMJSONEncoder, self).default(o)
+    
 #
 #
 __POSTMARK_URL__ = 'https://api.postmarkapp.com/'
@@ -370,6 +370,9 @@ class PMMail(object):
 
         return json_message
 
+    def dump_json_message(msg):
+        return json.dumps(msg, cls=PMJSONEncoder)
+
     def send(self, test=None):
         '''
         Send the email through the Postmark system.  
@@ -379,7 +382,7 @@ class PMMail(object):
         self._check_values()
         
         # Set up message dictionary
-        json_message = self.to_json_message()
+        json_message = self.dump_json_message()
             
 #         if (self.__html_body and not self.__text_body) and self.__multipart:
 #             # TODO: Set up regex to strip html
@@ -395,13 +398,12 @@ class PMMail(object):
         
         # If this is a test, just print the message
         if test:
-            print 'JSON message is:\n%s' % json.dumps(json_message, cls=PMJSONEncoder)
-            return
+            return (True, json_message)
             
         # Set up the url Request
         req = urllib2.Request(
             __POSTMARK_URL__ + 'email',
-            json.dumps(json_message, cls=PMJSONEncoder),
+            json_message,
             {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
@@ -416,7 +418,7 @@ class PMMail(object):
             result = urllib2.urlopen(req)
             result.close()
             if result.code == 200:
-                return True
+                return (True, json_message)
             else:
                 raise PMMailSendException('Return code %d: %s' % (result.code, result.msg))
         except urllib2.HTTPError, err:
@@ -439,6 +441,8 @@ class PMMail(object):
                 raise PMMailURLException('URLError: %d: The server couldn\'t fufill the request. (See "inner_exception" for details)' % err.code, err)
             else:
                 raise PMMailURLException('URLError: The server couldn\'t fufill the request. (See "inner_exception" for details)', err)
+
+    return (False, json_message)
 
 # Simple utility that returns a generator to chunk up a list into equal parts
 def _chunks(l, n):
@@ -656,7 +660,7 @@ class PMBounceManager(object):
                 return json.loads(result.read())
                 result.close()
             else:
-            	result.close()
+                result.close()
                 raise PMMailSendException('Return code %d: %s' % (result.code, result.msg))
             
         except urllib2.HTTPError, err:
@@ -664,7 +668,7 @@ class PMBounceManager(object):
                             
                             
     def get_all(self, inactive='', email_filter='', tag='', count=25, offset=0):
-    	'''
+        '''
         Fetches a portion of bounces according to the specified input criteria. The count and offset 
         parameters are mandatory. You should never retrieve all bounces as that could be excessively 
         slow for your application. To know how many bounces you have, you need to request a portion 
@@ -677,7 +681,7 @@ class PMBounceManager(object):
         params = '?inactive=' + inactive + '&emailFilter=' + email_filter +'&tag=' + tag 
         params += '&count=' + str(count) + '&offset=' + str(offset)
         
-        req = urllib2.Request(  	
+        req = urllib2.Request(      
             __POSTMARK_URL__ + 'bounces' + params,
             None,
             {
@@ -696,7 +700,7 @@ class PMBounceManager(object):
                 return json.loads(result.read())
                 result.close()
             else:
-            	result.close()
+                result.close()
                 raise PMMailSendException('Return code %d: %s' % (result.code, result.msg))
             
         except urllib2.HTTPError, err:
@@ -704,10 +708,10 @@ class PMBounceManager(object):
         
         
     def get_single(self, bounce_id):
-    	'''
-    	Get details about a single bounce. Note that the bounce ID is a numeric value that you 
-    	typically obtain after a getting a list of bounces.
-    	'''
+        '''
+        Get details about a single bounce. Note that the bounce ID is a numeric value that you 
+        typically obtain after a getting a list of bounces.
+        '''
         self._check_values()
         
         req = urllib2.Request(
@@ -729,7 +733,7 @@ class PMBounceManager(object):
                 return json.loads(result.read())
                 result.close()
             else:
-            	result.close()
+                result.close()
                 raise PMMailSendException('Return code %d: %s' % (result.code, result.msg))
             
         except urllib2.HTTPError, err:
@@ -738,16 +742,16 @@ class PMBounceManager(object):
     
     def get_dump(self, bounce_id):
         '''
-    	Returns the raw source of the bounce Postmark accepted. If Postmark does not have a dump for 
+        Returns the raw source of the bounce Postmark accepted. If Postmark does not have a dump for 
         that bounce, it will return an empty string.
-    	'''
+        '''
         self._check_values()
 
         req_url = __POSTMARK_URL__ + '/bounces/' + str(bounce_id) + '/dump'
         #print req_url
         
         req = urllib2.Request(
-	    req_url,
+        req_url,
             None,
             {
                 'Accept': 'application/json',
@@ -765,7 +769,7 @@ class PMBounceManager(object):
                 return json.loads(result.read())
                 result.close()
             else:
-            	result.close()
+                result.close()
                 raise PMMailSendException('Return code %d: %s' % (result.code, result.msg))
             
         except urllib2.HTTPError, err:
@@ -773,8 +777,8 @@ class PMBounceManager(object):
         
     def get_tags(self):
         '''
-    	Returns a list of tags used for the current server.
-    	'''
+        Returns a list of tags used for the current server.
+        '''
         self._check_values()
         
         req = urllib2.Request(
@@ -796,7 +800,7 @@ class PMBounceManager(object):
                 return json.loads(result.read())
                 result.close()
             else:
-            	result.close()
+                result.close()
                 raise PMMailSendException('Return code %d: %s' % (result.code, result.msg))
             
         except urllib2.HTTPError, err:
@@ -804,15 +808,15 @@ class PMBounceManager(object):
         
     def activate(self, bounce_id):
         '''
-    	Activates a deactivated bounce.
-    	'''
+        Activates a deactivated bounce.
+        '''
         self._check_values()
         req_url = '/bounces/' + str(bounce_id) + '/activate'
         #print req_url
         h1 = httplib.HTTPConnection('api.postmarkapp.com')
         dta = urllib.urlencode({"data":"blank"})
         req = h1.request('PUT',
-	    req_url,
+        req_url,
             dta,
             {
                 'Accept': 'application/json',
@@ -821,8 +825,8 @@ class PMBounceManager(object):
                 'User-agent': self.__user_agent
             }
         )
-	r=h1.getresponse()
-	return json.loads(r.read())
+    r=h1.getresponse()
+    return json.loads(r.read())
         
 
 #
