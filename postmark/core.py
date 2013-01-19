@@ -825,8 +825,8 @@ class PMBounceManager(object):
                 'User-agent': self.__user_agent
             }
         )
-    r=h1.getresponse()
-    return json.loads(r.read())
+        r=h1.getresponse()
+        return json.loads(r.read())
         
 
 #
